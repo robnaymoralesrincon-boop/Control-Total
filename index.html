@@ -1,0 +1,67 @@
+        function updatePrintInfo(monthIdx) {
+            const monthText = monthIdx === 'all' ? 'Todos los Meses' : MONTHS[monthIdx];
+            const typeText = filterMode === 'all' ? 'Todos los Registros' : (filterMode === 'income' ? 'Solo Ingresos' : 'Solo Egresos');
+            document.getElementById('print-filter-info').innerText = `${monthText} | Filtro: ${typeText}`;
+        }
+
+        function renderTable(dataToRender = records) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            
+            let totalIn = 0;
+            let totalOut = 0;
+
+            dataToRender.forEach((r, index) => {
+                totalIn += r.income;
+                totalOut += r.expense;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 text-xs font-mono text-slate-400">#${dataToRender.length - index}</td>
+                    <td class="px-6 py-4 text-xs font-bold text-slate-700">${formatDate(r.date)}</td>
+                    <td class="px-6 py-4 text-sm font-semibold text-slate-800">${r.name}</td>
+                    <td class="px-6 py-4 text-sm text-right font-bold text-emerald-600">${r.income > 0 ? '$' + r.income.toLocaleString() : '-'}</td>
+                    <td class="px-6 py-4 text-sm text-right font-bold text-rose-600">${r.expense > 0 ? '$' + r.expense.toLocaleString() : '-'}</td>
+                    <td class="px-6 py-4 text-xs text-slate-500 italic max-w-xs truncate">${r.obs || '---'}</td>
+                    <td class="px-6 py-4 text-center no-print">
+                        <button onclick="deleteRecord(${r.id})" class="text-slate-300 hover:text-red-500 transition">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateStats(dataToRender.length, totalIn, totalOut);
+        }
+
+        function updateStats(count, income, expense) {
+            const balance = income - expense;
+            
+            // Stats Panel
+            document.getElementById('stat-count').innerText = count;
+            document.getElementById('stat-income').innerText = '$' + income.toLocaleString();
+            document.getElementById('stat-expense').innerText = '$' + expense.toLocaleString();
+            document.getElementById('stat-balance').innerText = '$' + balance.toLocaleString();
+            document.getElementById('stat-balance').className = `text-2xl font-bold ${balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`;
+
+            // Print Totals
+            document.getElementById('print-total-income').innerText = '$' + income.toLocaleString();
+            document.getElementById('print-total-expense').innerText = '$' + expense.toLocaleString();
+            document.getElementById('print-total-balance').innerText = '$' + balance.toLocaleString();
+        }
+
+        function formatDate(dateStr) {
+            const parts = dateStr.split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        // Event Listeners adicionales
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') toggleModal(false);
+        });
+
+    </script>
+</body>
+</html>
