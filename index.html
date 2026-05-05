@@ -1,67 +1,152 @@
-        function updatePrintInfo(monthIdx) {
-            const monthText = monthIdx === 'all' ? 'Todos los Meses' : MONTHS[monthIdx];
-            const typeText = filterMode === 'all' ? 'Todos los Registros' : (filterMode === 'income' ? 'Solo Ingresos' : 'Solo Egresos');
-            document.getElementById('print-filter-info').innerText = `${monthText} | Filtro: ${typeText}`;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXONET v3.9 | Gestión Financiera</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        @media print {
+            header, .no-print, button, #search-input, #login-screen { display: none !important; }
+            .print-header, .print-totals { display: block !important; }
+        }
+        .print-header, .print-totals { display: none; }
+    </style>
+    </head>
+<body>
+
+    <div id="login-screen" class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-100 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 text-white rounded-2xl mb-4 shadow-lg">
+                <i class="fas fa-key text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900">EXONET <span class="text-indigo-600">v3.9</span></h1>
+            <input type="password" id="auth-key" class="w-full px-4 py-3 bg-slate-100 rounded-xl mb-4 text-center font-bold outline-none focus:border-indigo-500 border border-transparent" placeholder="CLAVE: admin">
+            <button onclick="login()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg active:scale-95 transition">Entrar</button>
+        </div>
+    </div>
+
+    <div id="app" class="hidden min-h-screen flex flex-col">
+        <header class="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg"><i class="fas fa-wallet"></i></div>
+                <h2 class="font-bold text-slate-800">Control Financiero</h2>
+            </div>
+            <button onclick="window.print()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold no-print">Imprimir</button>
+        </header>
+
+        <main class="p-4 md:p-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-xl border-l-4 border-emerald-500 shadow-sm">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Ingresos</p>
+                    <h4 id="stat-income" class="text-lg font-bold text-emerald-600">$0</h4>
+                </div>
+                <div class="bg-white p-4 rounded-xl border-l-4 border-rose-500 shadow-sm">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Egresos</p>
+                    <h4 id="stat-expense" class="text-lg font-bold text-rose-600">$0</h4>
+                </div>
+                <div class="bg-white p-4 rounded-xl border-l-4 border-indigo-500 shadow-sm col-span-2">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Saldo Neto</p>
+                    <h4 id="stat-balance" class="text-lg font-bold">$0</h4>
+                </div>
+            </div>
+
+            <button onclick="toggleModal(true)" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold mb-6 no-print shadow-md">+ Nuevo Registro</button>
+
+            <div class="bg-white rounded-xl border overflow-hidden shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase">
+                            <tr>
+                                <th class="px-4 py-3">Fecha</th>
+                                <th class="px-4 py-3">Concepto</th>
+                                <th class="px-4 py-3 text-right">Monto</th>
+                                <th class="px-4 py-3 text-center no-print">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 z-[1000] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleModal(false)"></div>
+        <div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
+            <h3 class="font-bold mb-4">Nueva Transacción</h3>
+            <input type="date" id="f-date" class="w-full p-3 bg-slate-50 rounded-xl mb-3 outline-none">
+            <input type="text" id="f-name" class="w-full p-3 bg-slate-50 rounded-xl mb-3 outline-none" placeholder="Nombre/Concepto">
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <input type="number" id="f-income" class="p-3 bg-slate-50 rounded-xl outline-none text-emerald-600" placeholder="Ingreso $">
+                <input type="number" id="f-expense" class="p-3 bg-slate-50 rounded-xl outline-none text-rose-600" placeholder="Egreso $">
+            </div>
+            <button onclick="saveRecord()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Guardar</button>
+        </div>
+    </div>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem('exonet_data')) || [];
+        const MASTER_KEY = "admin";
+
+        function login() {
+            if (document.getElementById('auth-key').value === MASTER_KEY) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                renderTable();
+            } else { alert("Clave incorrecta"); }
         }
 
-        function renderTable(dataToRender = records) {
+        function toggleModal(show) {
+            document.getElementById('modal').classList.toggle('hidden', !show);
+            if(show) document.getElementById('f-date').valueAsDate = new Date();
+        }
+
+        function saveRecord() {
+            const name = document.getElementById('f-name').value;
+            if(!name) return alert("Pon un nombre");
+            
+            const data = {
+                id: Date.now(),
+                date: document.getElementById('f-date').value,
+                name: name,
+                income: parseFloat(document.getElementById('f-income').value) || 0,
+                expense: parseFloat(document.getElementById('f-expense').value) || 0
+            };
+
+            records.unshift(data);
+            localStorage.setItem('exonet_data', JSON.stringify(records));
+            renderTable();
+            toggleModal(false);
+            // Limpiar campos
+            ['f-name', 'f-income', 'f-expense'].forEach(id => document.getElementById(id).value = '');
+        }
+
+        function deleteRecord(id) {
+            if(confirm("¿Eliminar?")) {
+                records = records.filter(r => r.id !== id);
+                localStorage.setItem('exonet_data', JSON.stringify(records));
+                renderTable();
+            }
+        }
+
+        function renderTable() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
-            
-            let totalIn = 0;
-            let totalOut = 0;
+            let tIn = 0, tOut = 0;
 
-            dataToRender.forEach((r, index) => {
-                totalIn += r.income;
-                totalOut += r.expense;
-
+            records.forEach(r => {
+                tIn += r.income; tOut += r.expense;
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
-                    <td class="px-6 py-4 text-xs font-mono text-slate-400">#${dataToRender.length - index}</td>
-                    <td class="px-6 py-4 text-xs font-bold text-slate-700">${formatDate(r.date)}</td>
-                    <td class="px-6 py-4 text-sm font-semibold text-slate-800">${r.name}</td>
-                    <td class="px-6 py-4 text-sm text-right font-bold text-emerald-600">${r.income > 0 ? '$' + r.income.toLocaleString() : '-'}</td>
-                    <td class="px-6 py-4 text-sm text-right font-bold text-rose-600">${r.expense > 0 ? '$' + r.expense.toLocaleString() : '-'}</td>
-                    <td class="px-6 py-4 text-xs text-slate-500 italic max-w-xs truncate">${r.obs || '---'}</td>
-                    <td class="px-6 py-4 text-center no-print">
-                        <button onclick="deleteRecord(${r.id})" class="text-slate-300 hover:text-red-500 transition">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                    <td class="px-4 py-3 text-xs">${r.date}</td>
+                    <td class="px-4 py-3 font-medium">${r.name}</td>
+                    <td class="px-4 py-3 text-right font-bold ${r.income > 0 ? 'text-emerald-600' : 'text-rose-600'}">
+                        $${(r.income || r.expense).toLocaleString()}
                     </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            updateStats(dataToRender.length, totalIn, totalOut);
-        }
-
-        function updateStats(count, income, expense) {
-            const balance = income - expense;
+                    <td class="px-4 py-3 text-center no-print">
+                        <button onclick="deleteRecord(${r.id})" class="text-slate-300 hover:text-red-500"><i class="fas fa-trash">
             
-            // Stats Panel
-            document.getElementById('stat-count').innerText = count;
-            document.getElementById('stat-income').innerText = '$' + income.toLocaleString();
-            document.getElementById('stat-expense').innerText = '$' + expense.toLocaleString();
-            document.getElementById('stat-balance').innerText = '$' + balance.toLocaleString();
-            document.getElementById('stat-balance').className = `text-2xl font-bold ${balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`;
-
-            // Print Totals
-            document.getElementById('print-total-income').innerText = '$' + income.toLocaleString();
-            document.getElementById('print-total-expense').innerText = '$' + expense.toLocaleString();
-            document.getElementById('print-total-balance').innerText = '$' + balance.toLocaleString();
-        }
-
-        function formatDate(dateStr) {
-            const parts = dateStr.split('-');
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-
-        // Event Listeners adicionales
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') toggleModal(false);
-        });
-
-    </script>
-</body>
-</html>
